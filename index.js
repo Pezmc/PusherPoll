@@ -14,6 +14,8 @@ app.use(function(req, res, next) {
   next();
 });
 
+app.use(express.static('public'));
+
 var pusher = new Pusher({ appId: '179357', key: '1616daa75a9b5e7076bc', secret: 'a17c2204a03f0721b2f5', encrypted: true });
 
 var userCount = 0;
