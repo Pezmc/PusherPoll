@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<title>Pusher Test</title>
+<script src="pusher.min.js"></script>
+<script src="jquery-1.12.0.js"></script>
+<script>
+  // Enable pusher logging - don't include this in production
+  Pusher.log = function(message) {
+    if (window.console && window.console.log) {
+      window.console.log(message);
+    }
+  };
+
+  // enable vibration support
+  navigator.vibrate = navigator.vibrate || navigator.webkitVibrate || navigator.mozVibrate || navigator.msVibrate;
+
+  // var count = presenceChannel.members.count;
+  var PusherVote = function(clientKey) {
+    var self = this;
+    var pusher = new Pusher(clientKey, {
+      encrypted: true,
+      authEndpoint: 'http://127.0.0.1:5000/pusher/auth'
+    });
+    var presenceChannelName = "presence-vote";
+
+    this.channel = pusher.subscribe(presenceChannelName);
+    /*this.channel.bind('pusher:subscription_succeeded', function() {
+      self.readyToVote();
+      self.updateCount();
+    });
+
+    this.channel.bind('pusher:subscription_error', function(status) {
+      $('.loading-screen h2').text('Failed to Connect');
+      $('.loading-screen h3').text('Something went horribly wrong (' + status + '), please try refreshing');
+    });
+
+    this.channel.bind('pusher:member_added', function() {
+      self.updateCount();
+    });
+
+    this.channel.bind('pusher:member_removed', function() {
+      self.updateCount();
+    });
+
+    this.channel.bind('new_question', function(data) {
+      self.newQuestion(data);
+    });*/
+
+    self.readyToVote();
+    self.newQuestion();
+  }
+
+  PusherVote.prototype.readyToVote = function() {
+    var self = this;
+    $('.ready-screen').fadeIn(function() {
+      $('.screen.loading-screen').hide();
+      self.vibrate();
+    });
+  }
+
+  PusherVote.prototype.updateCount = function() {
+    $('.screen .count').text(this.channel.members.count - 1 + " other people connected");
+  }
+
+  PusherVote.prototype.newQuestion = function() {
+    var data = {
+      title: "What do you think?",
+      options: [
+        "Dave",
+        "Smith",
+        "John",
+        "Jim"
+      ]
+    }
+
+    var $questionScreen = $('.question-screen').empty();
+
+    $questionScreen.append("<h1>" + data.title + "</h1>");
+    for (var i = 0; i < data.options.length; i++) {
+      var answer = data.options[i];
+      $questionScreen.append($('<button>' + answer + '</button>'));
+    }
+
+    $questionScreen.append($('<span class="status"></span>'));
+
+    var self = this;
+    $questionScreen.fadeIn(function() {
+      $('.screen.ready-screen').hide();
+      self.vibrate();
+    });
+
+    $questionScreen.on('click', 'button', function() {
+      self.vote(this);
+    });
+  }
+
+  PusherVote.prototype.vote = function(button) {
+    var $button = $(button);
+    var votedFor = $button.text();
+    var messageSent = false;
+
+    $('button').prop('disabled', true);
+    $('.question-screen .status').text('Sending...');
+    setTimeout(function() {
+      $('button').prop('disabled', false);
+      if(messageSent) {
+        $('.question-screen .status').text('Sent!');
+      } else {
+        $('.question-screen .status').text('Failed to send...');
+      }
+    }, 500);
+
+    messageSent = this.channel.trigger('client-vote', { option: votedFor, user: this.channel.members.me });
+
+    $('button.is-selected').removeClass('is-selected');
+    $button.addClass('is-selected');
+  }
+
+  PusherVote.prototype.vibrate = function() {
+    if (navigator.vibrate) {
+      navigator.vibrate(1000);
+      var count = 0;
+      function flash() {
+        $('.question-screen').toggleClass('blue');
+
+        if (count <= 2) {
+          count++;
+          setTimeout(flash, 200);
+        }
+      }
+
+      flash();
+    }
+  }
+</script>
+<style>
+.screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: red;
+  display: none;
+  padding: 5%;
+}
+.is-visible {
+  display: block;
+}
+.count {
+  position: fixed;
+  top: 5px;
+  right: 10px;
+  color: black;
+}
+.blue {
+  background: blue;
+}
+.is-selected {
+  opacity: 0.5;
+}
+</style>
+<div class="screen loading-screen is-visible">
+  <h2>Connecting...<h2>
+  <h3>Please wait...</h3>
+</div>
+<div class="screen ready-screen ">
+  <h2>Ready to vote... Please wait...</h2>
+  <div class="count"></div>
+</div>
+<div class="screen question-screen">
+
+</div>
+<div class="screen">
+
+</div>
+<script>
+  new PusherVote('1616daa75a9b5e7076bc');
+</script>
