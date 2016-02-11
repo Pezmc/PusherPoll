@@ -15,7 +15,7 @@
     var self = this;
     var pusher = new Pusher(clientKey, {
       encrypted: true,
-      authEndpoint: 'http://127.0.0.1:5000/pusher/auth'
+      authEndpoint: 'http://pez.ngrok.com/pusher/auth'
     });
     var presenceChannelName = "presence-vote";
 
@@ -49,18 +49,22 @@
       self.voteReceived(data);
     });
 
+    this.channel.bind('new_question', function(data) {
+      $('.title').text(data.title);
+    });
+
     /* Votes! */
-    this.voteReceived({user: {id:1}, option: "Pez"});
+    /*this.voteReceived({user: {id:1}, option: "Pez"});
     this.voteReceived({user: {id:2}, option: "Pez"});
     this.voteReceived({user: {id:3}, option: "Pez"});
     this.voteReceived({user: {id:4}, option: "Jim"});
-    this.updateGraph();
+    this.updateGraph();*/
   }
 
   PusherVoteGraph.prototype.connected = function() {
     $('.graph').fadeIn();
 
-    //this.graph.update([]);
+    this.graph.update([]);
   }
 
   PusherVoteGraph.prototype.voteReceived = function(data) {
@@ -114,52 +118,59 @@
   ///////////
 
   var Graph = function(element) {
-    this.bar_w = 250;
+    this.bar_w = $(element).width();
+    this.height = $(element).height();
     this.bar_padding = 25;
+    this.left_margin = 200;
+    this.bottom_margin = 50;
 
     this.chart = d3.select(element).append("svg")
          .attr("class", "chart")
-         .attr("width", '750')
-         .attr("height", '500');
+         .attr("width", this.bar_w)
+         .attr("height", this.height);
+
+    this.bars = this.chart.append('g')
+      .attr("class", "bars");
 
     this.chart.append('g')
-      .attr("class", "x-axis");
+      .attr("class", "x-axis")
+      .attr("transform", "translate(0," + (this.height - this.bottom_margin) + ")");
 
-    this.chart.append('g')
+    this.y_axis = this.chart.append('g')
       .attr("class", "y-axis");
   }
 
   Graph.prototype.update = function(data) {
-    var bar_h = Math.floor(500 / data.length - this.bar_padding);
+    var self = this;
+    var bar_h = Math.floor((this.height - this.bottom_margin) / data.length - this.bar_padding);
+
+    this.y_axis
+      .attr("transform", "translate(" + (this.left_margin - 2) + "," + (bar_h / 2) + ")");
 
     var x = d3.scale.linear()
           .domain([0, d3.max(data, function(d) { return d.value; })])
-          .rangeRound([0, this.bar_w]);
+          .rangeRound([this.left_margin, this.bar_w - this.left_margin]);
 
     var y = d3.scale.linear()
            .domain([0, data.length])
-           .rangeRound([0, 500]);
+           .rangeRound([25, this.height - this.bottom_margin]);
 
-    var rects = this.chart.selectAll("rect").data(data, function(d) { return d.key; });
+    var rects = this.bars.selectAll("rect").data(data, function(d) { return d.key; });
 
-    var xAxis = d3.svg.axis()
-                  .scale(x)
-                  .orient("bottom")
-                  .ticks(5);  //Set rough # of ticks
+    var xAxis = d3.svg.axis();
+    xAxis
+      .scale(x)
+      .orient("bottom")
+      .ticks(5)
+      .tickFormat(function(d,i){ return d.toString(); })  //Set rough # of ticks
 
     var yAxis = d3.svg.axis();
     yAxis
       .orient('left')
       .scale(y)
       .tickSize(2)
-      .tickFormat(function(d,i){ return d.key; })
+      .tickFormat(function(d,i){ return data[i].key; })
       .tickValues(d3.range(data.length));
-
-    this.chart.select("g.x-axis")
-      .call(xAxis);
-
-    this.chart.select("g.y-axis")
-      .call(yAxis);
 
     rects
       .enter()
@@ -168,16 +179,16 @@
 
     rects
       .transition()
-      .attr("x", function(d, i) { return 0; })
+      .attr("x", function(d, i) { return x(0); }) // Needs fixing
       .attr("y", function(d, i) { return y(i) - .5; })
       .attr("height", bar_h)
-      .attr("width", function(d) { return x(d.value) || 1; })
+      .attr("width", function(d) { return x(d.value) - x(0); })
 
     rects
       .exit()
       .remove();
 
-    var text = this.chart.selectAll("text").data(data)
+    var text = this.bars.selectAll("text").data(data)
 
     text
       .enter().append("text")
@@ -191,6 +202,12 @@
     text
       .exit()
       .remove();
+
+    this.chart.select("g.x-axis")
+      .call(xAxis);
+
+    this.chart.select("g.y-axis")
+      .call(yAxis);
   }
 
   var testData = {
@@ -229,17 +246,18 @@ svg {
   fill: #333;
 }
 
-.axis {
-  path {
-    fill: none;
-    //stroke: #333;
-  }
-  .tick line {
-    stroke-width: 1;
-    stroke: rgba(0,0,0,0.1);
-  }
-  //fill: #333;
-  font-size: 12px;
+.y-axis text {
+  font: 50px sans-serif;
+  fill: red;
+}
+
+.x-axis text {
+  font: 25px sans-serif;
+  fill: red;
+}
+
+.y-axis path {
+  fill: none;
 }
 
 .chart rect {
@@ -247,9 +265,18 @@ svg {
   fill: steelblue;
 }
 
-.chart text {
-  font: 13px sans-serif;
-  fill: red;
+
+.bars text {
+  font-size: 40px;
+}
+
+.title {
+  position: absolute;
+  top: 20px;
+  font-size: 50px;
+  text-align: center;
+  left: 0;
+  right: 0;
 }
 
 </style>
@@ -258,6 +285,9 @@ svg {
 </div>
 <div class="count">
 
+</div>
+<div class="title">
+  No Question Yet...
 </div>
 <script>
   var graph = new PusherVoteGraph('1616daa75a9b5e7076bc');
