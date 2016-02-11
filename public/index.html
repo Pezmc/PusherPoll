@@ -2,6 +2,7 @@
 <title>Pusher Test</title>
 <script src="pusher.min.js"></script>
 <script src="jquery-1.12.0.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script>
   // Enable pusher logging - don't include this in production
   Pusher.log = function(message) {
@@ -18,12 +19,12 @@
     var self = this;
     var pusher = new Pusher(clientKey, {
       encrypted: true,
-      authEndpoint: 'http://127.0.0.1:5000/pusher/auth'
+      authEndpoint: 'http://pez.ngrok.com/pusher/auth'
     });
     var presenceChannelName = "presence-vote";
 
     this.channel = pusher.subscribe(presenceChannelName);
-    /*this.channel.bind('pusher:subscription_succeeded', function() {
+    this.channel.bind('pusher:subscription_succeeded', function() {
       self.readyToVote();
       self.updateCount();
     });
@@ -43,10 +44,10 @@
 
     this.channel.bind('new_question', function(data) {
       self.newQuestion(data);
-    });*/
+    });
 
-    self.readyToVote();
-    self.newQuestion();
+    //self.readyToVote();
+    //self.newQuestion();
   }
 
   PusherVote.prototype.readyToVote = function() {
@@ -61,18 +62,9 @@
     $('.screen .count').text(this.channel.members.count - 1 + " other people connected");
   }
 
-  PusherVote.prototype.newQuestion = function() {
-    var data = {
-      title: "What do you think?",
-      options: [
-        "Dave",
-        "Smith",
-        "John",
-        "Jim"
-      ]
-    }
-
+  PusherVote.prototype.newQuestion = function(data) {
     var $questionScreen = $('.question-screen').empty();
+    this.vibrate();
 
     $questionScreen.append("<h1>" + data.title + "</h1>");
     for (var i = 0; i < data.options.length; i++) {
